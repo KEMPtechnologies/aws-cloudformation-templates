@@ -1,0 +1,126 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CloudFormation that will create a new KEMP LoadMaster-BYOL into an existing VPC/ Subnet",
+  "Parameters": {
+    "2InstanceSize": {
+      "Type": "String",
+      "Default": "m4.large",
+      "AllowedValues": [
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge"
+      ],
+      "Description": "Enter Instance Type/ Size."
+    },
+    "1InstanceName": {
+      "Type": "String",
+      "Description": "Enter a name for this VLM Instance."
+    },
+    "5KeyPair": {
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Description": "Select and existing KeyName."
+    },
+    "4Subnet": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Select an existing Subnet."
+    },
+    "3VPC": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "Select an existing VPC."
+    }
+  },
+  "Resources": {
+    "dopt4a3bfa23": {
+      "Type": "AWS::EC2::DHCPOptions",
+      "Properties": {
+        "DomainName": "us-east-2.compute.internal",
+        "DomainNameServers": [
+          "AmazonProvidedDNS"
+        ]
+      }
+    },
+    "instancei05bb6e0baf302fb87": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "EbsOptimized": "true",
+        "ImageId": "ami-9cc7f7f9",
+        "InstanceType": {
+          "Ref": "2InstanceSize"
+        },
+        "KeyName": {
+          "Ref": "5KeyPair"
+        },
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "1InstanceName"
+            }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": 0,
+            "SubnetId": {
+              "Ref": "4Subnet"
+            },
+            "GroupSet": [
+              {
+                "Ref": "VLMSecurityGroup"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "VLMSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "This security group is based on recommended settings for KEMP Load Balancer ADC provided by KEMP Technologies",
+        "VpcId": {
+          "Ref": "3VPC"
+        }
+      }
+    },
+    "ingress1": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "VLMSecurityGroup"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "ingress2": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "VLMSecurityGroup"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "8443",
+        "ToPort": "8443",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "egress1": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "VLMSecurityGroup"
+        },
+        "IpProtocol": "-1",
+        "CidrIp": "0.0.0.0/0"
+      }
+    }
+  },  
+}

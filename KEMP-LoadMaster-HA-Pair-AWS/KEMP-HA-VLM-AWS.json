@@ -1,0 +1,410 @@
+
+
+{
+   "AWSTemplateFormatVersion": "2010-09-09",
+   "Description": "CloudFormation template will deploy a pair of KEMP LoadMasters into two(2) existing subnets and two(2) different availability zones.  An AWS ELB will be deployed to support the HA Configuration",
+   "Parameters": {
+      "3InstanceSize": {
+         "Type": "String",
+         "Default": "m4.large",
+         "AllowedValues": [
+            "m4.large",
+            "m4.xlarge",
+            "m4.2xlarge"
+         ],
+         "Description": "Enter Instance Type/ Size."
+      },
+      "1LoadMaster1Name": {
+         "Type": "String",
+         "Description": "Enter a name for this VLM Instance."
+      },
+      "2LoadMaster2Name": {
+         "Type": "String",
+         "Description": "Enter a name for this VLM Instance."
+      },
+      "8KeyPair": {
+         "Type": "AWS::EC2::KeyPair::KeyName",
+         "Description": "Select and existing KeyName."
+      },
+      "5SubnetforLoadMaster1": {
+         "Type": "AWS::EC2::Subnet::Id",
+         "Description": "Select an existing Subnet."
+      },
+      "6SubnetforLoadMaster2": {
+         "Type": "AWS::EC2::Subnet::Id",
+         "Description": "Select an existing Subnet."
+      },
+      "7ELBName": {
+         "Type": "String",
+         "Description": "Name for AWS ELB Instance."
+      },
+      "4VPC": {
+         "Type": "AWS::EC2::VPC::Id",
+         "Description": "Select an existing VPC."
+      }
+   },
+   "Resources": {
+      "doptee979b86": {
+         "Type": "AWS::EC2::DHCPOptions",
+         "Properties": {
+            "DomainName": "us-east-2.compute.internal",
+            "DomainNameServers": [
+               "AmazonProvidedDNS"
+            ]
+         }
+      },
+      "ElasticLoadBalancer": {
+         "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+         "DependsOn": [
+            "LoadMaster1HA",
+            "LoadMaster2HA"
+         ],
+         "Properties": {
+            "Subnets": [
+               {
+                  "Ref": "5SubnetforLoadMaster1"
+               },
+               {
+                  "Ref": "6SubnetforLoadMaster2"
+               }
+            ],
+            "HealthCheck": {
+               "HealthyThreshold": "2",
+               "Interval": "5",
+               "Target": "HTTP:8444/",
+               "Timeout": "2",
+               "UnhealthyThreshold": "2"
+            },
+            "ConnectionDrainingPolicy": {
+               "Enabled": "true",
+               "Timeout": "1"
+            },
+            "ConnectionSettings": {
+               "IdleTimeout": "60"
+            },
+            "CrossZone": "true",
+            "LoadBalancerName": {
+               "Ref": "7ELBName"
+            },
+            "Instances": [
+               {
+                  "Ref": "LoadMaster1HA"
+               },
+               {
+                  "Ref": "LoadMaster2HA"
+               }
+            ],
+            "SecurityGroups": [
+               {
+                  "Ref": "sgELBSecurityGroup"
+               }
+            ],
+            "Listeners": [
+               {
+                  "InstancePort": "80",
+                  "LoadBalancerPort": "80",
+                  "Protocol": "HTTP",
+                  "InstanceProtocol": "HTTP"
+               }
+            ],
+            "Tags": [
+               {
+                  "Key": "Name",
+                  "Value": {
+                     "Ref": "7ELBName"
+                  }
+               }
+            ]
+         }
+      },
+      "LoadMaster1HA": {
+         "Type": "AWS::EC2::Instance",
+         "Properties": {
+            "DisableApiTermination": "false",
+            "InstanceInitiatedShutdownBehavior": "stop",
+            "EbsOptimized": "true",
+            "ImageId": "ami-9cc7f7f9",
+            "InstanceType": "m4.large",
+            "KeyName": {
+               "Ref": "8KeyPair"
+            },
+            "Monitoring": "false",
+            "Tags": [
+               {
+                  "Key": "Name",
+                  "Value": {
+                     "Ref": "1LoadMaster1Name"
+                  }
+               }
+            ],
+            "NetworkInterfaces": [
+               {
+                  "DeleteOnTermination": "true",
+                  "Description": "Primary network interface",
+                  "DeviceIndex": 0,
+                  "SubnetId": {
+                     "Ref": "5SubnetforLoadMaster1"
+                  },
+                  "GroupSet": [
+                     {
+                        "Ref": "LoadMaster1SecGroup"
+                     }
+                  ],
+                  "AssociatePublicIpAddress": "true"
+               }
+            ]
+         }
+      },
+      "LoadMaster2HA": {
+         "Type": "AWS::EC2::Instance",
+         "Properties": {
+            "DisableApiTermination": "false",
+            "InstanceInitiatedShutdownBehavior": "stop",
+            "EbsOptimized": "true",
+            "ImageId": "ami-9cc7f7f9",
+            "InstanceType": "m4.large",
+            "KeyName": {
+               "Ref": "8KeyPair"
+            },
+            "Monitoring": "false",
+            "Tags": [
+               {
+                  "Key": "Name",
+                  "Value": {
+                     "Ref": "2LoadMaster2Name"
+                  }
+               }
+            ],
+            "NetworkInterfaces": [
+               {
+                  "DeleteOnTermination": "true",
+                  "Description": "Primary network interface",
+                  "DeviceIndex": 0,
+                  "SubnetId": {
+                     "Ref": "6SubnetforLoadMaster2"
+                  },
+                  "GroupSet": [
+                     {
+                        "Ref": "LoadMaster2SecGroup"
+                     }
+                  ],
+                  "AssociatePublicIpAddress": "true"
+               }
+            ]
+         }
+      },
+      "LoadMaster2SecGroup": {
+         "Type": "AWS::EC2::SecurityGroup",
+         "Properties": {
+            "GroupDescription": "This security group is based on recommended settings for KEMP Load Balancer ADC provided by KEMP Technologies",
+            "VpcId": {
+               "Ref": "4VPC"
+            }
+         }
+      },
+      "sgELBSecurityGroup": {
+         "Type": "AWS::EC2::SecurityGroup",
+         "Properties": {
+            "GroupDescription": "ELB-SecurityGroup",
+            "VpcId": {
+               "Ref": "4VPC"
+            }
+         }
+      },
+      "LoadMaster1SecGroup": {
+         "Type": "AWS::EC2::SecurityGroup",
+         "Properties": {
+            "GroupDescription": "This security group is based on recommended settings for KEMP Load Balancer ADC provided by KEMP Technologies",
+            "VpcId": {
+               "Ref": "4VPC"
+            }
+         }
+      },
+      "dchpassoc1": {
+         "Type": "AWS::EC2::VPCDHCPOptionsAssociation",
+         "Properties": {
+            "VpcId": {
+               "Ref": "4VPC"
+            },
+            "DhcpOptionsId": {
+               "Ref": "doptee979b86"
+            }
+         }
+      },
+      "ingress1": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster1SecGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress2": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster1SecGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "8444",
+            "ToPort": "8444",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress3": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster1SecGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "8443",
+            "ToPort": "8443",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress4": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster1SecGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "6973",
+            "ToPort": "6973",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress5": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "sgELBSecurityGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress6": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "sgELBSecurityGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress7": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "sgELBSecurityGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "8444",
+            "ToPort": "8444",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress8": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "sgELBSecurityGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "8443",
+            "ToPort": "8443",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress9": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster2SecGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress10": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster2SecGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "8444",
+            "ToPort": "8444",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress11": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster2SecGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "8443",
+            "ToPort": "8443",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "ingress12": {
+         "Type": "AWS::EC2::SecurityGroupIngress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster2SecGroup"
+            },
+            "IpProtocol": "tcp",
+            "FromPort": "6973",
+            "ToPort": "6973",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "egress1": {
+         "Type": "AWS::EC2::SecurityGroupEgress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster1SecGroup"
+            },
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "egress2": {
+         "Type": "AWS::EC2::SecurityGroupEgress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "sgELBSecurityGroup"
+            },
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+         }
+      },
+      "egress3": {
+         "Type": "AWS::EC2::SecurityGroupEgress",
+         "Properties": {
+            "GroupId": {
+               "Ref": "LoadMaster2SecGroup"
+            },
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+         }
+      }
+   }
+}
+
