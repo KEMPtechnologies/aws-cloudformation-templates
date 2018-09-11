@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "CloudFormation that will create a new KEMP LoadMaster-BYOL into an existing VPC/ Subnet",
+  "Description": "CloudFormation that will create a new KEMP LoadMaster-BYOL into an existing VPC/ Subnet. VLM Version 7.2.43",
   "Parameters": {
     "2InstanceSize": {
       "Type": "String",
@@ -29,23 +29,65 @@
       "Description": "Select an existing VPC."
     }
   },
-  "Resources": {
-    "dopt4a3bfa23": {
-      "Type": "AWS::EC2::DHCPOptions",
-      "Properties": {
-        "DomainName": "us-east-2.compute.internal",
-        "DomainNameServers": [
-          "AmazonProvidedDNS"
-        ]
+  "Mappings": {
+    "RegionMap": {
+      "us-east-1": {
+        "64": "ami-0c1186aa647b9cd7c"
+      },
+      "us-east-2": {
+        "64": "ami-05eac04b512fb5197"
+      },
+      "us-west-1": {
+        "64": "ami-06bffbf0a53d2214d"
+      },
+      "us-west-2": {
+        "64": "ami-c6684bbe"
+      },
+      "ap-south-1": {
+        "64": "ami-0ee9b61498f0e7929"
+      },
+      "ap-northeast-2": {
+        "64": "ami-0f4a2ce3ee8819ef7"
+      },
+      "ap-southeast-1": {
+        "64": "ami-0d856942c3584ff8c"
+      },
+      "ap-southeast-2": {
+        "64": "ami-0c90b03290d366ee6"
+      },
+      "ap-northeast-1": {
+        "64": "ami-09baa52d2ff9b4ec0"
+      },
+      "ca-central-1": {
+        "64": "ami-5a25a83e"
+      },
+      "eu-central-1": {
+        "64": "ami-0745e5852fb1c88f5"
+      },
+      "eu-west-1": {
+        "64": "ami-08ea71643c86523d1"
+      },
+      "eu-west-2": {
+        "64": "ami-32a55155"
+      },
+      "eu-west-3": {
+        "64": "ami-0f721a8bc49813abf"
+      },
+      "esa-east-1": {
+        "64": "ami-08239a7c7450b8dfa"
       }
-    },
+    }
+  },
+  "Resources": {
     "instancei05bb6e0baf302fb87": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
         "DisableApiTermination": "false",
         "InstanceInitiatedShutdownBehavior": "stop",
         "EbsOptimized": "true",
-        "ImageId": "ami-9cc7f7f9",
+        "ImageId": {
+          "Fn::FindInMap": ["RegionMap",{"Ref": "AWS::Region"},"64"]
+        },
         "InstanceType": {
           "Ref": "2InstanceSize"
         },
@@ -122,5 +164,5 @@
         "CidrIp": "0.0.0.0/0"
       }
     }
-  },  
+  }
 }
